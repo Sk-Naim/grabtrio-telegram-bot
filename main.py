@@ -7,8 +7,7 @@ from telebot import types
 Token = os.getenv("BOT_TOKEN")
 bot = telebot.TeleBot(Token)
 
-
-# To store last URL per user
+# Store last URL per user
 user_last_url = {}
 # ======================================
 
@@ -26,7 +25,7 @@ def start_handler(message):
     text = (
         "👋 *Welcome to GrabTrio Video Downloader!*\n\n"
         "🚀 I can instantly download videos from:\n"
-        "• YouTube (Videos, Shorts)\n"
+        "• YouTube (Videos, Shorts — even age-restricted!)\n"
         "• Instagram (Reels, Posts)\n"
         "• Facebook (Reels, Videos)\n\n"
         "Just send any video link and choose the quality.\n\n"
@@ -67,9 +66,8 @@ def about_bot(message):
 @bot.message_handler(func=lambda m: m.text and m.text.startswith("http"))
 def url_handler(message):
     url = message.text.strip()
-    user_last_url[message.from_user.id] = url  # Save URL for callback
+    user_last_url[message.from_user.id] = url
 
-    # Inline buttons for quality
     kb = types.InlineKeyboardMarkup()
     kb.row(
         types.InlineKeyboardButton("⭐ Best", callback_data="q_best"),
@@ -115,23 +113,26 @@ def download_with_ytdlp(chat_id, url, format_str, quality_label):
     status = bot.send_message(chat_id, f"⬇️ Downloading video ({quality_label})…")
 
     filename = "video_download.mp4"
+    cookies_path = "cookies.txt"   # <--- You added this file in your repo
+
     ydl_opts = {
         "outtmpl": filename,
         "format": format_str,
         "merge_output_format": "mp4",
         "noplaylist": True,
+        "cookiefile": cookies_path,     # <--- FIX FOR AGE-RESTRICTED / VERIFIED VIDEOS
+        "quiet": True,
+        "nocheckcertificate": True,
     }
 
     try:
-        # Download using yt-dlp
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
 
-        # Send video
+        # Send video to Telegram
         with open(filename, "rb") as f:
             bot.send_video(chat_id, f)
 
-        # Success message
         bot.edit_message_text(
             "✅ *Download complete!*\n🙏 Thanks for using *GrabTrio Bot*!",
             chat_id,
